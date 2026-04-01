@@ -1,0 +1,390 @@
+import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CheckCircle2 } from 'lucide-react';
+
+const ADMIN_EMAILS = ['ma5070310@gmail.com', 'Ahmed.gaber0291@gmail.com'];
+
+const initialForm = {
+  employeeName: '',
+  clientFullName: '',
+  age: '',
+  passportJobTitle: '',
+  otherJobTitle: '',
+  hasBankStatement: '',
+  availableBalance: '',
+  expectedBalance: '',
+  maritalStatus: '',
+  childrenCount: '',
+  hasRelativesAbroad: '',
+  nationalityType: 'مصري',
+  nationality: '',
+  residencyStatus: '',
+  governorate: '',
+  consultationMethod: '',
+  email: '',
+  previousRejected: '',
+  rejectionNumbers: '',
+  rejectionReason: '',
+  rejectionCountry: '',
+  phoneNumber: '',
+  whatsappNumber: '',
+  hasPreviousVisas: '',
+  previousVisaCountries: '',
+  recommendation: '',
+  status: '',
+  serviceType: '',
+  assignedTo: '',
+};
+
+const serviceAssignments = {
+  'بافلي': 'أحمد الشيخ',
+  'ترانس روفر': 'محمود الشيخ',
+};
+
+const requiredBaseFields = [
+  'employeeName',
+  'clientFullName',
+  'age',
+  'passportJobTitle',
+  'hasBankStatement',
+  'maritalStatus',
+  'hasRelativesAbroad',
+  'nationalityType',
+  'governorate',
+  'consultationMethod',
+  'email',
+  'previousRejected',
+  'phoneNumber',
+  'whatsappNumber',
+  'hasPreviousVisas',
+  'recommendation',
+  'status',
+  'serviceType',
+];
+
+function fieldLabel(key) {
+  const labels = {
+    employeeName: 'اسم الموظف',
+    clientFullName: 'اسم العميل بالكامل',
+    age: 'السن',
+    passportJobTitle: 'الوظيفة في جواز السفر',
+    otherJobTitle: 'وظيفة أخرى',
+    hasBankStatement: 'هل يوجد كشف حساب',
+    availableBalance: 'الرصيد المتاح',
+    expectedBalance: 'الرصيد المتوقع',
+    maritalStatus: 'الحالة الاجتماعية',
+    childrenCount: 'عدد الأولاد',
+    hasRelativesAbroad: 'هل ليك حد في الخارج',
+    nationalityType: 'نوع الجنسية',
+    nationality: 'الجنسية',
+    residencyStatus: 'هل في إقامة',
+    governorate: 'المحافظة',
+    consultationMethod: 'طريقة عمل الاستشارة',
+    email: 'البريد الإلكتروني',
+    previousRejected: 'هل تم رفضك قبل كده',
+    rejectionNumbers: 'أرقام الرفض',
+    rejectionReason: 'سبب الرفض',
+    rejectionCountry: 'البلد التي أخذت منها الرفض',
+    phoneNumber: 'رقم الهاتف',
+    whatsappNumber: 'رقم الواتس اب',
+    hasPreviousVisas: 'هل توجد تأشيرات سابقة',
+    previousVisaCountries: 'بلاد التأشيرات السابقة',
+    recommendation: 'التوصية',
+    status: 'الحالة',
+    serviceType: 'نوع الخدمة',
+    assignedTo: 'التحويل إلى',
+  };
+  return labels[key] || key;
+}
+
+export default function KYCRTLFormPreview() {
+  const [form, setForm] = useState(initialForm);
+  const [errors, setErrors] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [savedRecord, setSavedRecord] = useState(null);
+
+  const computedAssignedTo = useMemo(() => serviceAssignments[form.serviceType] || '', [form.serviceType]);
+
+  const requiredFields = useMemo(() => {
+    const dynamic = [...requiredBaseFields];
+
+    if (form.hasBankStatement === 'نعم') dynamic.push('availableBalance');
+    if (form.hasBankStatement === 'لا') dynamic.push('expectedBalance');
+    if (form.maritalStatus === 'متزوج') dynamic.push('childrenCount');
+    if (form.nationalityType === 'غير مصري') dynamic.push('nationality', 'residencyStatus');
+    if (form.previousRejected === 'نعم') {
+      dynamic.push('rejectionNumbers', 'rejectionReason', 'rejectionCountry');
+    }
+    if (form.hasPreviousVisas === 'نعم') dynamic.push('previousVisaCountries');
+
+    return dynamic;
+  }, [form]);
+
+  const updateField = (key, value) => {
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'serviceType') next.assignedTo = serviceAssignments[value] || '';
+      if (key === 'hasBankStatement') {
+        if (value === 'نعم') next.expectedBalance = '';
+        if (value === 'لا') next.availableBalance = '';
+      }
+      if (key === 'maritalStatus' && value !== 'متزوج') next.childrenCount = '';
+      if (key === 'nationalityType' && value !== 'غير مصري') {
+        next.nationality = '';
+        next.residencyStatus = '';
+      }
+      if (key === 'previousRejected' && value !== 'نعم') {
+        next.rejectionNumbers = '';
+        next.rejectionReason = '';
+        next.rejectionCountry = '';
+      }
+      if (key === 'hasPreviousVisas' && value !== 'نعم') next.previousVisaCountries = '';
+      return next;
+    });
+
+    setErrors((prev) => ({ ...prev, [key]: '' }));
+    setSubmitted(false);
+  };
+
+  const validate = () => {
+    const nextErrors = {};
+
+    requiredFields.forEach((key) => {
+      if (!String(form[key] || '').trim()) {
+        nextErrors[key] = 'هذا الحقل مطلوب';
+      }
+    });
+
+    if (form.email && !/^\S+@\S+\.\S+$/.test(form.email)) {
+      nextErrors.email = 'يرجى إدخال بريد إلكتروني صحيح';
+    }
+
+    ['age', 'childrenCount'].forEach((numField) => {
+      if (form[numField] && Number(form[numField]) < 0) {
+        nextErrors[numField] = 'القيمة يجب أن تكون أكبر من أو تساوي صفر';
+      }
+    });
+
+    ['phoneNumber', 'whatsappNumber'].forEach((phoneField) => {
+      if (form[phoneField] && !/^[0-9+\-\s]{7,20}$/.test(form[phoneField])) {
+        nextErrors[phoneField] = 'يرجى إدخال رقم صحيح';
+      }
+    });
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+
+    const payload = {
+      ...form,
+      assignedTo: computedAssignedTo,
+      submittedAt: new Date().toLocaleString('ar-EG'),
+      adminEmails: ADMIN_EMAILS,
+    };
+
+    const existing = JSON.parse(localStorage.getItem('kyc_submissions_preview') || '[]');
+    existing.unshift(payload);
+    localStorage.setItem('kyc_submissions_preview', JSON.stringify(existing));
+
+    setSavedRecord(payload);
+    setSubmitted(true);
+  };
+
+  const renderInput = (key, type = 'text', placeholder = '') => (
+    <div className="space-y-2">
+      <Label className="text-right block text-[#d4af37] font-medium">
+        {fieldLabel(key)} {requiredFields.includes(key) ? <span className="text-[#facc15]">*</span> : null}
+      </Label>
+      <Input
+        type={type}
+        value={form[key]}
+        onChange={(e) => updateField(key, e.target.value)}
+        placeholder={placeholder}
+        className="text-right bg-black/40 border border-[#5c4a12] text-white placeholder:text-zinc-500 rounded-2xl focus-visible:ring-[#d4af37] focus-visible:border-[#d4af37]"
+        dir="rtl"
+      />
+      {errors[key] ? <p className="text-sm text-red-400 text-right">{errors[key]}</p> : null}
+    </div>
+  );
+
+  const renderSelect = (key, options, placeholder = 'اختر') => (
+    <div className="space-y-2">
+      <Label className="text-right block text-[#d4af37] font-medium">
+        {fieldLabel(key)} {requiredFields.includes(key) ? <span className="text-[#facc15]">*</span> : null}
+      </Label>
+      <Select value={form[key]} onValueChange={(value) => updateField(key, value)}>
+        <SelectTrigger className="text-right bg-black/40 border border-[#5c4a12] text-white rounded-2xl focus:ring-[#d4af37]" dir="rtl">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent className="bg-[#111111] border border-[#5c4a12] text-white">
+          {options.map((option) => (
+            <SelectItem key={option} value={option}>{option}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {errors[key] ? <p className="text-sm text-red-400 text-right">{errors[key]}</p> : null}
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-black via-[#111111] to-[#1a1405] p-6 text-white" dir="rtl">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+        >
+          <Card className="rounded-[28px] shadow-2xl border border-[#5c4a12] bg-[#0b0b0b]/95 backdrop-blur">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-3xl md:text-4xl text-right text-[#d4af37] tracking-wide">نموذج KYC</CardTitle>
+            </CardHeader>
+          </Card>
+        </motion.div>
+
+        <motion.form
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05, duration: 0.35 }}
+          onSubmit={handleSubmit}
+          className="space-y-6"
+        >
+          <Card className="rounded-[28px] shadow-xl border border-[#5c4a12] bg-[#0b0b0b]/95">
+            <CardHeader>
+              <CardTitle className="text-right text-xl text-[#d4af37]">البيانات الأساسية</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              {renderInput('employeeName')}
+              {renderInput('clientFullName')}
+              {renderInput('age', 'number')}
+              {renderInput('passportJobTitle')}
+              {renderInput('otherJobTitle')}
+              {renderSelect('serviceType', ['بافلي', 'ترانس روفر', 'أخرى'])}
+              <div className="space-y-2 md:col-span-2">
+                <Label className="text-right block text-[#d4af37] font-medium">{fieldLabel('assignedTo')}</Label>
+                <Input value={computedAssignedTo} readOnly className="text-right bg-[#1a1a1a] border border-[#5c4a12] text-[#f5deb3] rounded-2xl" dir="rtl" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[28px] shadow-xl border border-[#5c4a12] bg-[#0b0b0b]/95">
+            <CardHeader>
+              <CardTitle className="text-right text-xl text-[#d4af37]">البيانات المالية والاجتماعية</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              {renderSelect('hasBankStatement', ['نعم', 'لا'])}
+              {form.hasBankStatement === 'نعم' ? renderInput('availableBalance') : null}
+              {form.hasBankStatement === 'لا' ? renderInput('expectedBalance') : null}
+
+              {renderSelect('maritalStatus', ['أعزب', 'متزوج', 'مطلق', 'أرمل'])}
+              {form.maritalStatus === 'متزوج' ? renderInput('childrenCount', 'number') : null}
+
+              {renderSelect('hasRelativesAbroad', ['نعم', 'لا'])}
+              {renderSelect('nationalityType', ['مصري', 'غير مصري'])}
+              {form.nationalityType === 'غير مصري' ? renderInput('nationality') : null}
+              {form.nationalityType === 'غير مصري' ? renderSelect('residencyStatus', ['نعم', 'لا']) : null}
+              {renderInput('governorate')}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[28px] shadow-xl border border-[#5c4a12] bg-[#0b0b0b]/95">
+            <CardHeader>
+              <CardTitle className="text-right text-xl text-[#d4af37]">بيانات التواصل والاستشارة</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              {renderSelect('consultationMethod', ['مقابلة', 'فون', 'فيديوكول'])}
+              {renderInput('email', 'email')}
+              {renderInput('phoneNumber')}
+              {renderInput('whatsappNumber')}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[28px] shadow-xl border border-[#5c4a12] bg-[#0b0b0b]/95">
+            <CardHeader>
+              <CardTitle className="text-right text-xl text-[#d4af37]">التأشيرات والرفض السابق</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              {renderSelect('previousRejected', ['نعم', 'لا'])}
+              {form.previousRejected === 'نعم' ? renderInput('rejectionNumbers') : null}
+              {form.previousRejected === 'نعم' ? renderInput('rejectionReason') : null}
+              {form.previousRejected === 'نعم' ? renderInput('rejectionCountry') : null}
+
+              {renderSelect('hasPreviousVisas', ['نعم', 'لا'])}
+              {form.hasPreviousVisas === 'نعم' ? renderInput('previousVisaCountries') : null}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[28px] shadow-xl border border-[#5c4a12] bg-[#0b0b0b]/95">
+            <CardHeader>
+              <CardTitle className="text-right text-xl text-[#d4af37]">التوصية والحالة</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-right block text-[#d4af37] font-medium">
+                  {fieldLabel('recommendation')} <span className="text-[#facc15]">*</span>
+                </Label>
+                <Textarea
+                  value={form.recommendation}
+                  onChange={(e) => updateField('recommendation', e.target.value)}
+                  className="min-h-28 text-right bg-black/40 border border-[#5c4a12] text-white placeholder:text-zinc-500 rounded-2xl focus-visible:ring-[#d4af37] focus-visible:border-[#d4af37]"
+                  dir="rtl"
+                  placeholder="الموظف سيقول فيها العميل محتاج إيه"
+                />
+                {errors.recommendation ? <p className="text-sm text-red-400 text-right">{errors.recommendation}</p> : null}
+              </div>
+
+              {renderInput('status')}
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-start">
+            <Button type="submit" className="rounded-2xl px-8 bg-[#d4af37] text-black hover:bg-[#c49b2b] font-semibold shadow-lg">
+              حفظ وإرسال
+            </Button>
+          </div>
+        </motion.form>
+
+        {submitted && savedRecord ? (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="rounded-[28px] border border-[#5c4a12] bg-[#0b0b0b]/95 shadow-xl">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center justify-end gap-2 text-[#d4af37]">
+                  <span className="font-medium">تم حفظ النموذج بنجاح</span>
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 text-sm">
+                  <div className="rounded-2xl bg-[#151515] border border-[#5c4a12] p-4 text-right text-white">
+                    <p className="font-semibold mb-2 text-[#d4af37]">ملخص الإرسال</p>
+                    <p>اسم العميل: {savedRecord.clientFullName}</p>
+                    <p>نوع الخدمة: {savedRecord.serviceType}</p>
+                    <p>التحويل إلى: {savedRecord.assignedTo || '-'}</p>
+                    <p>وقت الإرسال: {savedRecord.submittedAt}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#151515] border border-[#5c4a12] p-4 text-right text-white">
+                    <p className="font-semibold mb-2 text-[#d4af37]">المعالجة الخلفية في النسخة الفعلية</p>
+                    <p>• تخزين في قاعدة بيانات بسيطة</p>
+                    <p>• إرسال بريد إلى مسؤولي النظام</p>
+                    <p>• التحقق من الحقول والشروط نفسها</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
